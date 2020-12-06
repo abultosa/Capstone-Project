@@ -1,0 +1,311 @@
+---
+title: "Milestone-shiny-App-All-In-One"
+author: "Student!"
+date: "12/04/2020"
+output: html_document
+---
+Executive Summary
+
+As part of Data Science Course Capstone project, this milestone report demonstrates the work done on exploratory data analysis and modeling for text prediction purposes. To get started with the Data Science Capstone Project, the working directory is verified and the data is downloaded from the course location from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip.
+
+
+This is an attempt to explore the basics and by no means doesn't represent a complete understanding of the subject matter.  A number of method has been tried and used, for example, to read few lines of the data, as part learning and understanding the process.  Some approach may have been irrelevant to the current project.
+
+#Set the work directory, to make sure.
+```{r}
+getwd()
+```
+
+#Install needed package, text minig (tm) and other needed packages.
+```{r}
+library(tm)
+library(ngram)
+library(stringi)
+library(stringr)
+library(corpus)
+library(lattice)
+library(ggplot2)
+library(knitr)
+library(R.utils)
+library(RWeka)
+library(dplyr)
+library(doParallel)
+library(wordcloud)
+library(SnowballC)
+```
+
+
+#The readLines function is applied here to read few lines of the data and relabel the data.
+```{r}
+blogs <- readLines("~/Desktop/GFinale/en_US.blogs.txt", encoding = "UTF-8")
+```
+
+```{r}
+news <- readLines("~/Desktop/GFinale/en_US.news.txt", encoding = "UTF-8")
+```
+
+```{r}
+Twitter <- readLines("~/Desktop/GFinale/en_US.twitter.txt", encoding = "UTF-8", skipNul = TRUE)
+```
+
+#The object size for each file is checked to make sure for sample purposes.
+```{r}
+object.size(blogs)
+object.size(news)
+object.size(Twitter)
+```
+
+# Here a different approach is used to read few lines of the head of the data.
+```{r}
+data = blogs
+print(head(blogs, n = 5))
+```
+
+```{r}
+data = news
+print(head(news, n = 5))
+```
+
+```{r}
+data = Twitter
+print(head(Twitter, n = 5))
+```
+
+#The training and test data for the blogs data
+```{r}
+train_in_bl <- sample(1:nrow(data.frame(blogs)), 0.90 * nrow(data.frame(blogs)))
+test_in_bl <- setdiff(1:nrow(data.frame(blogs)), train_in_bl)
+```
+
+#The training and test data for the news data.
+```{r}
+train_in_news <- sample(1:nrow(data.frame(news)), 0.9 * nrow(data.frame(news)))
+test_in_news <- setdiff(1:nrow(data.frame(news)), train_in_news)
+```
+
+#The training and test data for the twitter data.
+```{r}
+train_in_twt <- sample(1:nrow(data.frame(Twitter)), 0.9 * nrow(data.frame(Twitter)))
+test_in_twt <- setdiff(1:nrow(data.frame(Twitter)), train_in_twt)
+```
+
+#Basic word count from the training data set.
+```{r}
+mydata <- data
+print(head(mydata, n = 10))
+```
+# Another approach is used here to read head and tail of the data.
+```{r}
+dim.data.frame(blogs)
+str(blogs)
+head(blogs)
+tail(blogs)
+```
+
+# The summary of each dataset is presented as follows.
+```{r}
+summary(blogs)
+summary(test_in_bl)
+```
+
+```{r}
+summary(news)
+summary(test_in_news)
+```
+
+```{r}
+summary(Twitter)
+summary(test_in_twt)
+```
+
+# The general statstics is as follows.
+```{r}
+stri_stats_general(train_in_bl)
+stri_stats_general(train_in_news)
+stri_stats_general(train_in_twt)
+```
+
+
+```{r}
+summary(train_in_bl)
+```
+
+```{r}
+summary(train_in_news)
+```
+
+```{r}
+summary(train_in_twt)
+```
+
+
+```{r}
+hist(c(train_in_bl, train_in_news, train_in_twt))
+```
+
+
+#The data charachter length is checked to verify them and ready for further analysis.
+```{r}
+nchar_blogs <- sum(nchar(blogs))
+nchar_news <- sum(nchar(news))
+nchar_twt <- sum(nchar(Twitter))
+```
+
+#Build N-grams
+Extract the word and frequency of N-grams.
+
+Cleaning the Data
+I used several options of the Text Mining (TM) package to clean up the data for the purpose of creating ngrams. Some of the tasks I used to clean up the data were:
+
+Strip Whitespace, Lower Case, Remove Punctuation, Remove Numbers, Plain Text Conversion.  First I created the sample data.
+
+```{r}
+sample_data <- c(sample(blogs,length(train_in_bl)*0.1), 
+               sample(news,length(train_in_news)*0.1),
+               sample(Twitter,length(train_in_twt)*0.01))
+length(sample_data)
+```
+
+```{r}
+p_data <- c(sample(blogs, length(train_in_bl)*0.1),
+            sample(news, length(train_in_news)*0.1),
+            sample(Twitter, length(train_in_twt)*0.01))
+length(p_data)
+```
+
+
+```{r}
+set.seed(123)
+corpus <- VCorpus(VectorSource(sample_data))
+
+## Cleaning the dataset
+corpus <- tm_map(corpus, stripWhitespace)
+corpus <- tm_map(corpus, tolower)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, PlainTextDocument)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+```
+
+
+```{r}
+file <- readLines("Text_Predictor.R", encoding = "UTF-8")
+```
+
+
+```{r}
+set.seed(999)
+sBlog <- blogs[sample(1:length(blogs),20000)]
+sNews <- news[sample(1:length(news),20000)]
+sTwit <- Twitter[sample(1:length(Twitter),20000)]
+sData <- list(sBlog, sNews, sTwit)
+```
+
+
+# Create corpus and clean the data
+```{r}
+badwords <- readLines("list_bad_word.txt", encoding = "latin1", warn=FALSE, skipNul=TRUE)
+sD_Corp <- VCorpus(VectorSource(sData))
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+sD_Corp <- tm_map(sD_Corp, toSpace, "(f|ht)tp(s?)://(.*)[.][a-z]+")
+sD_Corp <- tm_map(sD_Corp, toSpace, "@[^\\s]+")
+sD_Corp <- tm_map(sD_Corp, removeWords, c("i","I"))
+sD_Corp <- tm_map(sD_Corp, removeWords, badwords)
+sD_Corp <- tm_map(sD_Corp, removeWords,  c(stopwords('english')))
+sD_Corp <- tm_map(sD_Corp, removePunctuation)
+sD_Corp <- tm_map(sD_Corp, tolower)
+sD_Corp <- tm_map(sD_Corp, removeNumbers)
+sD_Corp <- tm_map(sD_Corp, stripWhitespace)
+sD_Corp <- tm_map(sD_Corp, PlainTextDocument)
+```
+
+N-gram Tokenization
+Using the developed corpus, I needed to look at speech patterns and investigate sequenced word pairs, syllables, lettering, etc. via n-gram modeling methodology. Using word frequencies within the n-gram models, unigrams, bigrams and trigrams were creatd.
+
+# N-Grams
+```{r}
+u_Token <- function(x) {
+        NGramTokenizer(x, Weka_control(min = 1, max = 1))
+}
+Uni_gram <- DocumentTermMatrix(sD_Corp, control = list(tokenize = u_Token))
+
+b_Token <- function(x) {
+        NGramTokenizer(x, Weka_control(min = 2, max = 2))
+}
+Bi_gram <- DocumentTermMatrix(sD_Corp, control = list(tokenize = b_Token))
+
+tri_Token <- function(x) {
+        NGramTokenizer(x, Weka_control(min = 3, max = 3))
+}
+Tri_gram <- DocumentTermMatrix(sD_Corp, control = list(tokenize = tri_Token))
+```
+
+Exploratory Analysis
+After completing N-gram modeling for unigrams, bigrams and trigrams, the total frequencies are determined and plotted below
+
+Unigram Frequency (Top 10)
+#Unigram
+```{r}
+ufreq <- sort(colSums(as.matrix(Uni_gram)),decreasing = TRUE)
+ufreq_df <- data.frame(word = names(ufreq), frequency = ufreq)
+head(ufreq_df, 10)
+```
+
+Unigram Plot
+#Unigram
+```{r}
+ufreq_df %>% 
+        filter(frequency > 1500) %>%
+        ggplot(aes(reorder(word,-frequency), frequency, fill=frequency)) +
+        geom_bar(stat = "identity") +
+        ggtitle("Unigrams with frequencies > 1500") +
+        xlab("Unigrams") + ylab("Frequency") +
+        theme_bw() + 
+        theme(plot.title = element_text(color="royalblue2", face="bold",hjust=0.5)) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+        theme(legend.position="none")
+```
+
+Bigram Frequency (Top 10)
+```{r}
+bfreq <- sort(colSums(as.matrix(Bi_gram)),decreasing = TRUE)
+bfreq_df <- data.frame(word = names(bfreq), frequency = bfreq)
+head(bfreq_df, 10)
+```
+
+Bigram Plot
+```{r}
+bfreq_df %>% 
+        filter(frequency > 100) %>%
+        ggplot(aes(reorder(word,-frequency), frequency, fill=frequency)) +
+        geom_bar(stat = "identity") +
+        ggtitle("Bi_grams with frequencies > 100") +
+        xlab("Bi_grams") + ylab("Frequency") +
+        theme_bw() + 
+        theme(plot.title = element_text(color="deepskyblue2", face="bold",hjust=0.5)) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+        theme(legend.position="none")
+```
+
+Trigram Frequency (Top 10)
+```{r}
+tri_freq <- sort(colSums(as.matrix(Tri_gram)),decreasing = TRUE)
+tri_freq_df <- data.frame(word = names(tri_freq), frequency = tri_freq)
+head(tri_freq_df, 10)
+```
+
+Trigram Plot
+```{r}
+tfreq_df %>% 
+        filter(frequency > 9) %>%
+        ggplot(aes(reorder(word,-frequency), frequency, fill=frequency)) +
+        geom_bar(stat = "identity") +
+        ggtitle("Trigrams with frequencies > 9") +
+        xlab("Trigrams") + ylab("Frequency") +
+        theme_bw() + 
+        theme(plot.title = element_text(color="darkorchid2", face="bold",hjust=0.5)) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+        theme(legend.position="none")
+```
+
+Although further analysis and development is possible with further study and I have decided to finalize at this stage.  Prediction strategies for Shiny app is an easily interactive and inviting interface allowing the user to enter some text allowing the user to enter some text then the prediction algorithm will suggest the next word.
